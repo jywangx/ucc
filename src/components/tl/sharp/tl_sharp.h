@@ -115,8 +115,9 @@ typedef struct ucc_tl_sharp_task {
         struct {
             ucc_tl_sharp_reg_t     *s_mem_h;
             ucc_tl_sharp_reg_t     *r_mem_h;
-            ucc_mc_buffer_header_t *scratch_mc_header; 
-            void                   *scratch;            
+            ucc_mc_buffer_header_t *scratch_mc_header;
+            void                   *scratch;
+            void                  **reqs;
         } reduce_scatter;
     };
 } ucc_tl_sharp_task_t;

@@ -320,7 +320,26 @@ ucc_status_t ucc_tl_sharp_allreduce_start(ucc_coll_task_t *coll_task)
     return ucc_progress_queue_enqueue(UCC_TL_CORE_CTX(team)->pq, &task->super);
 }
 
-ucc_status_t ucc_tl_sharp_reduce_scatter_start(ucc_coll_task_t *coll_task)
+/**
+ * Implemented by n parallel non-blocking reduce
+*/
+void ucc_tl_sharp_reduce_scatter_nr_progress(ucc_coll_task_t *coll_task)
+{
+    // todo
+}
+
+/**
+ * Implemented by n parallel non-blocking reduce
+*/
+ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
+{
+    // todo
+}
+
+/**
+ * Implemented by allreduce wrapped
+*/
+ucc_status_t ucc_tl_sharp_reduce_scatter_arw_start(ucc_coll_task_t *coll_task)
 {
     ucc_tl_sharp_task_t          *task   = ucc_derived_of(coll_task, ucc_tl_sharp_task_t);
     ucc_tl_sharp_team_t          *team   = TASK_TEAM(task);
@@ -517,7 +536,8 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_init(ucc_tl_sharp_task_t *task)
         return UCC_ERR_NOT_SUPPORTED;
     }
 
-    task->super.post     = ucc_tl_sharp_reduce_scatter_start;
+    // todo: choose real function by msg_size
+    task->super.post     = ucc_tl_sharp_reduce_scatter_arw_start;
     task->super.progress = ucc_tl_sharp_collective_progress;
     return UCC_OK;
 }
