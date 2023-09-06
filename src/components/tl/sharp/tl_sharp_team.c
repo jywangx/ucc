@@ -20,7 +20,6 @@ UCC_CLASS_INIT_FUNC(ucc_tl_sharp_team_t, ucc_base_context_t *tl_context,
     int                              ret;
     ucc_status_t                     status;
     ucc_subset_t                     set;
-
     if (!(params->params.mask & UCC_TEAM_PARAM_FIELD_OOB)) {
         tl_debug(ctx->super.super.lib, "team OOB required for sharp team");
         return UCC_ERR_INVALID_PARAM;
@@ -138,7 +137,6 @@ UCC_CLASS_INIT_FUNC(ucc_tl_sharp_team_t, ucc_base_context_t *tl_context,
         status = UCC_ERR_NO_RESOURCE;
         goto cleanup;
     }
-
     tl_debug(self->super.super.context->lib,
              "initialized tl team: %p size:%d", self, UCC_TL_TEAM_SIZE(self));
     return UCC_OK;
@@ -227,6 +225,9 @@ ucc_status_t ucc_tl_sharp_coll_init(ucc_base_coll_args_t *coll_args,
     {
     case UCC_COLL_TYPE_ALLREDUCE:
         status = ucc_tl_sharp_allreduce_init(task);
+        break;
+    case UCC_COLL_TYPE_REDUCE_SCATTER:
+        status = ucc_tl_sharp_reduce_scatter_init(task);
         break;
     case UCC_COLL_TYPE_BARRIER:
         status = ucc_tl_sharp_barrier_init(task);
