@@ -11,6 +11,7 @@
 #include "components/tl/ucc_tl_log.h"
 #include "utils/ucc_mpool.h"
 #include "utils/ucc_rcache.h"
+#include "components/mc/base/ucc_mc_base.h"
 
 #include <sharp/api/sharp.h>
 #include <limits.h>
@@ -111,6 +112,12 @@ typedef struct ucc_tl_sharp_task {
         struct {
             ucc_tl_sharp_reg_t *mem_h;
         } bcast;
+        struct {
+            ucc_tl_sharp_reg_t     *s_mem_h;
+            ucc_tl_sharp_reg_t     *r_mem_h;
+            ucc_mc_buffer_header_t *scratch_mc_header; 
+            void                   *scratch;            
+        } reduce_scatter;
     };
 } ucc_tl_sharp_task_t;
 
@@ -132,7 +139,7 @@ ucc_status_t sharp_status_to_ucc_status(int status);
 #define TASK_ARGS(_task) (_task)->super.bargs.args
 
 #define UCC_TL_SHARP_SUPPORTED_COLLS                                           \
-    (UCC_COLL_TYPE_ALLREDUCE | UCC_COLL_TYPE_BARRIER | UCC_COLL_TYPE_BCAST)
+    (UCC_COLL_TYPE_ALLREDUCE | UCC_COLL_TYPE_BARRIER | UCC_COLL_TYPE_BCAST | UCC_COLL_TYPE_REDUCE_SCATTER)
 
 UCC_CLASS_DECLARE(ucc_tl_sharp_team_t, ucc_base_context_t *,
                   const ucc_base_team_params_t *);
