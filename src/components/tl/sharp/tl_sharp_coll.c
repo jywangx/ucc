@@ -335,7 +335,9 @@ void ucc_tl_sharp_reduce_scatter_nr_progress(ucc_coll_task_t *coll_task)
     for(int i = 0; i < size; i++){
 
         //check i th reduce_nb request
+        tl_debug(UCC_TASK_LIB(task), "reduce test start %p", task);
         completed = sharp_coll_req_test(request_list[i]);
+        tl_debug(UCC_TASK_LIB(task), "reduce test end %p", task);
         if(completed)
             continue;
         else
@@ -372,7 +374,7 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
 
     //initialize sharp_req hands
     void **sharp_reqs;
-    sharp_reqs = malloc(sizeof(void *)*size);
+    sharp_reqs = (void **)malloc(sizeof(void *)*size);
 
     UCC_TL_SHARP_PROFILE_REQUEST_EVENT(coll_task, "sharp_reduce_scatter_start", 0); // Not sure
 
@@ -427,7 +429,9 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
 
     for(int rankCnt = 0; rankCnt < size; rankCnt++){
 
+        tl_debug(UCC_TASK_LIB(task), "reduce post %p", task);
         ret = sharp_coll_do_reduce_nb(team->sharp_comm, &reduce_spec, &sharp_reqs[rankCnt]);
+        tl_debug(UCC_TASK_LIB(task), "reduce post success %p", task);
 
         /*update src and dst ptr*/
         srcBufPtrInChar += offset;
@@ -442,7 +446,7 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
     }
 
     //give the pointer of requestes list for later test
-    task->reduce_scatter.reqs = (void *)sharp_reqs;
+    task->reduce_scatter.reqs = (void **)sharp_reqs;
 
     if (ucc_unlikely(ret != SHARP_COLL_SUCCESS)) {
         tl_error(UCC_TASK_LIB(task), "reduce scatter REDUCENB failed:%s",
