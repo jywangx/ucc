@@ -326,30 +326,38 @@ ucc_status_t ucc_tl_sharp_allreduce_start(ucc_coll_task_t *coll_task)
 */
 void ucc_tl_sharp_reduce_scatter_nr_progress(ucc_coll_task_t *coll_task)
 {
-    ucc_tl_sharp_task_t *task  = ucc_derived_of(coll_task, ucc_tl_sharp_task_t);
+    ucc_tl_sharp_task_t          *task  = ucc_derived_of(coll_task, ucc_tl_sharp_task_t);
+    ucc_coll_args_t              *args  = &TASK_ARGS(task);
+    size_t                        count = args->dst.info.count;
+    ucc_datatype_t                dt    = args->dst.info.datatype;
+    size_t                        data_size;
     int completed;
     int size = (int)(coll_task->bargs.team->size);
-    // int rank = (int)(coll_task->bargs.team->rank);
-    //multiple reduce nb
-    void ** request_list = (void **)task->req_handle;
-    for(int i = 0; i < size; i++){
 
-        //check i th reduce_nb request
-	    // if (!rank) printf("req[%d]: %p\n", i, request_list[i]);
-        completed = sharp_coll_req_test(request_list[i]);
-        if(completed)
-            continue;
-        else
-            return;//one of the request is not completed, return immediately
-    }
+    data_size  = ucc_dt_size(dt) * count / size;
+
+        //multiple reduce nb
+        void ** request_list = (void **)task->req_handle;
+        for(int i = 0; i < size; i++){
+
+            //check i th reduce_nb request
+            completed = sharp_coll_req_test(request_list[i]);
+            if(completed)
+                continue;
+            else
+                return;//one is not completed, return immediately
+
+        }
+        
+        for(int i = 0; i < size; i++){//free all requests
+            sharp_coll_req_free(request_list[i]);
+        }
+
+        coll_task->status = UCC_OK;
+        UCC_TL_SHARP_PROFILE_REQUEST_EVENT(coll_task,
+                                            "sharp_collective_done", 0);
+
     
-    for(int i = 0; i < size; i++){//free all requests
-        sharp_coll_req_free(request_list[i]);
-    }
-
-    coll_task->status = UCC_OK;
-    UCC_TL_SHARP_PROFILE_REQUEST_EVENT(coll_task,
-                                        "sharp_collective_done", 0);
 }
 
 /**
