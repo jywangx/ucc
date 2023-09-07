@@ -327,7 +327,7 @@ ucc_status_t ucc_tl_sharp_allreduce_start(ucc_coll_task_t *coll_task)
 void ucc_tl_sharp_reduce_scatter_nr_progress(ucc_coll_task_t *coll_task)
 {
     ucc_tl_sharp_task_t          *task  = ucc_derived_of(coll_task, ucc_tl_sharp_task_t);
-    ucc_coll_args_t              *args  = &TASK_ARGS(task);
+    // ucc_coll_args_t              *args  = &TASK_ARGS(task);
     // size_t                        count = args->dst.info.count;
     // ucc_datatype_t                dt    = args->dst.info.datatype;
     // size_t                        data_size;
