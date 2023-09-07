@@ -425,6 +425,8 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
     char *srcBufPtrInChar = (char *) args->src.info.buffer;
     char *dstBufPtrInChar = (char *) args->dst.info.buffer;
 
+    printf("lunching reduce nb\n");
+
     for(int rankCnt = 0; rankCnt < size; rankCnt++){
 
         ret = sharp_coll_do_reduce_nb(team->sharp_comm, &reduce_spec, &sharp_reqs[rankCnt]);
@@ -643,9 +645,9 @@ ucc_status_t ucc_tl_sharp_barrier_init(ucc_tl_sharp_task_t *task)
 ucc_status_t ucc_tl_sharp_reduce_scatter_init(ucc_tl_sharp_task_t *task)
 {
     ucc_coll_args_t *args = &TASK_ARGS(task);
-    ucc_coll_task_t coll_task = &task->super;
+    ucc_coll_task_t coll_task = task->super;
     size_t           data_size;
-    int              size = (int)(coll_task->bargs.team->size);
+    int              size = (int)(coll_task.bargs.team->size);
 
     data_size = ucc_dt_size(args->src.info.datatype) * args->src.info.count;
 
