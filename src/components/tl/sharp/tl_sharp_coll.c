@@ -12,7 +12,9 @@
 #include "utils/ucc_coll_utils.h"
 #include <sharp/api/version.h>
 #include <sharp/api/sharp_coll.h>
+#include <stdint.h>
 #include <sys/socket.h>
+#include <stdlib.h>
 
 enum sharp_datatype ucc_to_sharp_dtype[] = {
     [UCC_DT_PREDEFINED_ID(UCC_DT_INT16)]            = SHARP_DTYPE_SHORT,
@@ -185,7 +187,57 @@ void ucc_tl_sharp_collective_progress(ucc_coll_task_t *coll_task)
 /* just return UCC_OK because we use bolcked allreduce to implement reduce scatter*/
 void ucc_tl_sharp_collective_progress_for_rs(ucc_coll_task_t *coll_task)
 {
-    coll_task->status = UCC_OK;
+    // TODO(lqb) 处理 allreduce_nb 的数据筛选以及 reduce_nb 的资源释放
+    ucc_tl_sharp_task_t *task  = ucc_derived_of(coll_task, ucc_tl_sharp_task_t);
+    if (task->reduce_scatter.req_handle_num > 1) {
+        for (int i = 0; i < task->reduce_scatter.req_handle_num; i++) {
+            if (task->reduce_scatter.finished_tasks[i]) continue;
+            if (sharp_coll_req_test(task->reduce_scatter.req_handles[i])) {
+                if (!UCC_IS_INPLACE(TASK_ARGS(task))) {
+                    ucc_tl_sharp_mem_deregister(TASK_TEAM(task),
+                                                task->reduce_scatter.s_mem_hs[i]);
+                }
+                ucc_tl_sharp_mem_deregister(TASK_TEAM(task),
+                                            task->reduce_scatter.r_mem_hs[i]);
+                sharp_coll_req_free(task->reduce_scatter.req_handles[i]);
+                task->reduce_scatter.finished_tasks[i] = 1;
+                task->reduce_scatter.finished_task_num ++;
+            }
+        }
+        if (task->reduce_scatter.finished_task_num == task->reduce_scatter.req_handle_num) {
+            free((void *)task->reduce_scatter.s_mem_hs);
+            free((void *)task->reduce_scatter.r_mem_hs);
+            free((void *)task->reduce_scatter.req_handles);
+            free((void*)task->reduce_scatter.finished_tasks);
+            coll_task->status = UCC_OK;
+            UCC_TL_SHARP_PROFILE_REQUEST_EVENT(coll_task,
+                                            "sharp_collective_done", 0);
+        }
+    } else {
+        if (task->req_handle != NULL) {
+            completed = sharp_coll_req_test(task->req_handle);
+            if (completed) {
+                // choose data
+                memcpy(task->reduce_scatter.recv_buf, 
+                    (void *)(task->reduce_scatter.tmp_buf + task->reduce_scatter.recv_data_start), 
+                    task->reduce_scatter.recv_data_size);
+                // release resources
+                if (!UCC_IS_INPLACE(TASK_ARGS(task))) {
+                    ucc_tl_sharp_mem_deregister(TASK_TEAM(task),
+                                                task->reduce_scatter.s_mem_hs[0]);
+                }
+                ucc_tl_sharp_mem_deregister(TASK_TEAM(task),
+                                            task->reduce_scatter.r_mem_hs[0]);
+                sharp_coll_req_free(task->req_handle);
+                free((void *)task->reduce_scatter.s_mem_hs);
+                free((void *)task->reduce_scatter.r_mem_hs);
+                free((void *)task->reduce_scatter.tmp_buf);
+                coll_task->status = UCC_OK;
+                UCC_TL_SHARP_PROFILE_REQUEST_EVENT(coll_task,
+                                                "sharp_collective_done", 0);
+            }
+        }
+    }
 }
 
 ucc_status_t ucc_tl_sharp_barrier_start(ucc_coll_task_t *coll_task)
@@ -323,6 +375,14 @@ void wait_for_complete(ucc_tl_sharp_task_t *task, void **req_handles,
     }
 }
 
+#define CHECK_MALLOC(var, malloc, type)                                     \
+    void *addr = (malloc);                                                  \
+    if (addr == NULL) {                                                     \
+        tl_error(UCC_TASK_LIB(task), "failed to allocate enough memory!");  \
+        exit(-1);                                                           \
+    }                                                                       \
+    (var) = (type)addr;
+
 /**
  * filt data after allreduce to implement reduce scatter
  */
@@ -352,9 +412,21 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_start(ucc_coll_task_t *coll_task)
     int8_t should_use_reduce = (count_per_node * ucc_dt_size(dt) >= 16384);
 
     if (should_use_reduce) {
-        void *req_handle_buffer[global_ranks];
-        ucc_tl_sharp_reg_t *s_mem_h[global_ranks];
-        ucc_tl_sharp_reg_t *r_mem_h[global_ranks];
+        // void *req_handle_buffer[global_ranks];
+        // ucc_tl_sharp_reg_t *s_mem_h[global_ranks];
+        // ucc_tl_sharp_reg_t *r_mem_h[global_ranks];
+
+        // task->reduce_scatter.finished_tasks = (int8_t *)calloc(global_ranks, sizeof(int8_t));
+        // task->reduce_scatter.req_handles = (void **)malloc(sizeof(void *) * global_ranks);
+        // task->reduce_scatter.s_mem_hs = (ucc_tl_sharp_reg_t **)malloc(sizeof(ucc_tl_sharp_reg_t *) * global_ranks);
+        // task->reduce_scatter.r_mem_hs = (ucc_tl_sharp_reg_t **)malloc(sizeof(ucc_tl_sharp_reg_t *) * global_ranks);
+
+        task->req_handle_num = global_ranks;
+        task->reduce_scatter.finished_task_num = 0;
+        CHECK_MALLOC(task->reduce_scatter.finished_tasks, calloc(global_ranks, sizeof(int8_t)), int8_t*)
+        CHECK_MALLOC(task->reduce_scatter.req_handles, malloc(sizeof(void *) * global_ranks), void**)
+        CHECK_MALLOC(task->reduce_scatter.s_mem_hs, malloc(sizeof(ucc_tl_sharp_reg_t *) * global_ranks), ucc_tl_sharp_reg_t**)
+        CHECK_MALLOC(task->reduce_scatter.r_mem_hs, malloc(sizeof(ucc_tl_sharp_reg_t *) * global_ranks), ucc_tl_sharp_reg_t**)
         struct sharp_coll_reduce_spec reduce_spec[global_ranks];
 
         int send_nb_count = count_per_node;
@@ -369,20 +441,22 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_start(ucc_coll_task_t *coll_task)
             void *sbuf_start = (void*)(((int8_t*)args->src.info.buffer) + send_start);
             if (!UCC_IS_INPLACE(*args)) {
                 ucc_tl_sharp_mem_register(TASK_CTX(task), team, sbuf_start, size_per_node,
-                                        &s_mem_h[i]);
+                                        &task->reduce_scatter.s_mem_hs[i]);
             }
             ucc_tl_sharp_mem_register(TASK_CTX(task), team, args->dst.info.buffer,
                                     size_per_node,
-                                    &r_mem_h[i]);
+                                    &task->reduce_scatter.r_mem_hs[i]);
 
             reduce_spec[i].root = i;
             fill_reduce_spec(&reduce_spec[i], args, 
                             sbuf_start, (void*)args->dst.info.buffer, 
-                            s_mem_h[i], r_mem_h[i], 
+                            task->reduce_scatter.s_mem_hs[i], 
+                            task->reduce_scatter.r_mem_hs[i], 
                             size_per_node, send_nb_count, sharp_type, op_type, 
                             src_mem_type, dest_mem_type);
 
-            ret = sharp_coll_do_reduce_nb(team->sharp_comm, &reduce_spec[i], &req_handle_buffer[i]);
+            ret = sharp_coll_do_reduce_nb(team->sharp_comm, &reduce_spec[i],
+                                        &task->reduce_scatter.req_handles[i]);
             if (ucc_unlikely(ret != SHARP_COLL_SUCCESS)) {
                 tl_error(UCC_TASK_LIB(task), "sharp_coll_do_reduce_nb failed:%s",
                         sharp_coll_strerror(ret));
@@ -392,47 +466,61 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_start(ucc_coll_task_t *coll_task)
             send_start += size_per_node;
         }
         assert(send_start == send_data_size);
-        wait_for_complete(task, req_handle_buffer, s_mem_h, r_mem_h, global_ranks);
+        // TODO(lqb) 将 wait_for_complete 移动到 progress 函数中
+        // wait_for_complete(task, req_handle_buffer, s_mem_h, r_mem_h, global_ranks);
     } else {
-        int8_t recv_buf[send_data_size];
+        // int8_t recv_buf[send_data_size];
+        // task->reduce_scatter.s_mem_hs = (ucc_tl_sharp_reg_t **)malloc(sizeof(ucc_tl_sharp_reg_t *));
+        // task->reduce_scatter.r_mem_hs = (ucc_tl_sharp_reg_t **)malloc(sizeof(ucc_tl_sharp_reg_t *));
+        // task->reduce_scatter.tmp_buf = (int8_t *)malloc(send_data_size);
+
+        task->req_handle_num = 1;
+        CHECK_MALLOC(task->reduce_scatter.s_mem_hs, malloc(sizeof(ucc_tl_sharp_reg_t *)), ucc_tl_sharp_reg_t**)
+        CHECK_MALLOC(task->reduce_scatter.r_mem_hs, malloc(sizeof(ucc_tl_sharp_reg_t *)), ucc_tl_sharp_reg_t**)
+        CHECK_MALLOC(task->reduce_scatter.tmp_buf, malloc(send_data_size), int8_t*)
+        task->reduce_scatter.recv_buf = args->dst.info.buffer;
+
         if (!UCC_IS_INPLACE(*args)) {
             ucc_tl_sharp_mem_register(TASK_CTX(task), team, args->src.info.buffer, send_data_size,
-                                    &task->allreduce.s_mem_h);
+                                    &task->reduce_scatter.s_mem_hs[0]);
         }
-        ucc_tl_sharp_mem_register(TASK_CTX(task), team, (void*)recv_buf, 
+        ucc_tl_sharp_mem_register(TASK_CTX(task), team, (void*)task->reduce_scatter.tmp_buf, 
                                 send_data_size,
-                                &task->allreduce.r_mem_h);
+                                &task->reduce_scatter.r_mem_hs[0]);
         struct sharp_coll_reduce_spec reduce_spec;
         fill_reduce_spec(&reduce_spec, args, 
-                        args->src.info.buffer, (void*) recv_buf, 
-                        task->allreduce.s_mem_h, task->allreduce.r_mem_h, 
+                        args->src.info.buffer, (void*)task->reduce_scatter.tmp_buf, 
+                        task->reduce_scatter.s_mem_hs[0],
+                        task->reduce_scatter.r_mem_hs[0], 
                         send_data_size, send_count, sharp_type, op_type, 
                         src_mem_type, dest_mem_type);
-
-        ret = sharp_coll_do_allreduce(team->sharp_comm, &reduce_spec);
+        
+        ret = sharp_coll_do_allreduce_nb(team->sharp_comm, &reduce_spec, &task->req_handle);
         if (ucc_unlikely(ret != SHARP_COLL_SUCCESS)) {
             tl_error(UCC_TASK_LIB(task), "sharp_coll_do_allreduce failed:%s",
                     sharp_coll_strerror(ret));
             coll_task->status = ucc_tl_sharp_status_to_ucc(ret);
             return ucc_task_complete(coll_task);
         }
-	
+
         int copy_size = count_per_node * ucc_dt_size(dt);
         int copy_start = copy_size * local_rank;
         if (local_rank == global_ranks - 1) {
             copy_size += count_per_node_mod * ucc_dt_size(dt);
         }
-        memcpy(args->dst.info.buffer, recv_buf + copy_start, copy_size);
+        task->reduce_scatter.recv_data_size = copy_size;
+        task->reduce_scatter.recv_data_start = copy_start;
+        // memcpy(args->dst.info.buffer, recv_buf + copy_start, copy_size);
 
-        if (!UCC_IS_INPLACE(TASK_ARGS(task))) {
-            ucc_tl_sharp_mem_deregister(TASK_TEAM(task),
-                                        task->allreduce.s_mem_h);
-        }
-        ucc_tl_sharp_mem_deregister(TASK_TEAM(task),
-                                    task->allreduce.r_mem_h);
+        // if (!UCC_IS_INPLACE(TASK_ARGS(task))) {
+        //     ucc_tl_sharp_mem_deregister(TASK_TEAM(task),
+        //                                 task->allreduce.s_mem_h);
+        // }
+        // ucc_tl_sharp_mem_deregister(TASK_TEAM(task),
+        //                             task->allreduce.r_mem_h);
     }
 
-    coll_task->status = UCC_OK;
+    coll_task->status = UCC_INPROGRESS;
     UCC_TL_SHARP_PROFILE_REQUEST_EVENT(coll_task,
                                     "sharp_reduce_scatter_start done", 0);
 

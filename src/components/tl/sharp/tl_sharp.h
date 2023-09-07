@@ -14,6 +14,8 @@
 
 #include <sharp/api/sharp.h>
 #include <limits.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #ifndef UCC_TL_SHARP_DEFAULT_SCORE
 #define UCC_TL_SHARP_DEFAULT_SCORE 30
@@ -111,6 +113,20 @@ typedef struct ucc_tl_sharp_task {
         struct {
             ucc_tl_sharp_reg_t *mem_h;
         } bcast;
+        struct {
+            size_t               req_handle_num;
+            size_t               finished_task_num;
+            int8_t              *finished_tasks;
+            void               **req_handles;
+            ucc_tl_sharp_reg_t **s_mem_hs;
+            ucc_tl_sharp_reg_t **r_mem_hs;
+            // for allreduce
+            int8_t              *tmp_buf;
+            void                *recv_buf;
+            // size_t               send_data_size;
+            size_t               recv_data_size;
+            size_t               recv_data_start;
+        } reduce_scatter;
     };
 } ucc_tl_sharp_task_t;
 
