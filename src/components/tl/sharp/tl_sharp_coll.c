@@ -390,18 +390,18 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
 
     if (!UCC_IS_INPLACE(*args)) {
         ucc_tl_sharp_mem_register(TASK_CTX(task), team, args->src.info.buffer,data_size,
-                                  &task->allreduce.s_mem_h);
+                                  &task->reduce_scatter.s_mem_h);
     }
     ucc_tl_sharp_mem_register(TASK_CTX(task), team, args->dst.info.buffer, data_size,
-                              &task->allreduce.r_mem_h);
+                              &task->reduce_scatter.r_mem_h);
 
     if (!UCC_IS_INPLACE(*args)) {
         reduce_spec.sbuf_desc.buffer.ptr        = args->src.info.buffer;
-        reduce_spec.sbuf_desc.buffer.mem_handle = task->allreduce.s_mem_h->mr;
+        reduce_spec.sbuf_desc.buffer.mem_handle = task->reduce_scatter.s_mem_h->mr;
         reduce_spec.sbuf_desc.mem_type          = ucc_to_sharp_memtype[args->src.info.mem_type];
     } else {
         reduce_spec.sbuf_desc.buffer.ptr        = args->dst.info.buffer;
-        reduce_spec.sbuf_desc.buffer.mem_handle = task->allreduce.r_mem_h->mr;
+        reduce_spec.sbuf_desc.buffer.mem_handle = task->reduce_scatter.r_mem_h->mr;
         reduce_spec.sbuf_desc.mem_type          = ucc_to_sharp_memtype[args->dst.info.mem_type];
     }
 
@@ -409,7 +409,7 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
     reduce_spec.sbuf_desc.type              = SHARP_DATA_BUFFER;
     reduce_spec.rbuf_desc.buffer.ptr        = args->dst.info.buffer;
     reduce_spec.rbuf_desc.buffer.length     = data_size;
-    reduce_spec.rbuf_desc.buffer.mem_handle = task->allreduce.r_mem_h->mr;
+    reduce_spec.rbuf_desc.buffer.mem_handle = task->reduce_scatter.r_mem_h->mr;
     reduce_spec.rbuf_desc.type              = SHARP_DATA_BUFFER;
     reduce_spec.rbuf_desc.mem_type          = ucc_to_sharp_memtype[args->dst.info.mem_type];
     reduce_spec.aggr_mode                   = SHARP_AGGREGATION_NONE;
