@@ -391,18 +391,18 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
 
     if (!UCC_IS_INPLACE(*args)) {
         ucc_tl_sharp_mem_register(TASK_CTX(task), team, args->src.info.buffer, data_size,
-                                  &task->reduce_scatter.s_mem_h);
+                                  &task->allreduce.s_mem_h);
     }
     ucc_tl_sharp_mem_register(TASK_CTX(task), team, args->dst.info.buffer, data_size,
-                              &task->reduce_scatter.r_mem_h);
+                              &task->allreduce.r_mem_h);
 
     if (!UCC_IS_INPLACE(*args)) {
         reduce_spec.sbuf_desc.buffer.ptr        = args->src.info.buffer;
-        reduce_spec.sbuf_desc.buffer.mem_handle = task->reduce_scatter.s_mem_h->mr;
+        reduce_spec.sbuf_desc.buffer.mem_handle = task->allreduce.s_mem_h->mr;
         reduce_spec.sbuf_desc.mem_type          = ucc_to_sharp_memtype[args->src.info.mem_type];
     } else {
         reduce_spec.sbuf_desc.buffer.ptr        = args->dst.info.buffer;
-        reduce_spec.sbuf_desc.buffer.mem_handle = task->reduce_scatter.r_mem_h->mr;
+        reduce_spec.sbuf_desc.buffer.mem_handle = task->allreduce.r_mem_h->mr;
         reduce_spec.sbuf_desc.mem_type          = ucc_to_sharp_memtype[args->dst.info.mem_type];
     }
 
@@ -411,7 +411,7 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
 
     reduce_spec.rbuf_desc.buffer.ptr        = args->dst.info.buffer;
     reduce_spec.rbuf_desc.buffer.length     = data_size;
-    reduce_spec.rbuf_desc.buffer.mem_handle = task->reduce_scatter.r_mem_h->mr;
+    reduce_spec.rbuf_desc.buffer.mem_handle = task->allreduce.r_mem_h->mr;
     reduce_spec.rbuf_desc.type              = SHARP_DATA_BUFFER;
     reduce_spec.rbuf_desc.mem_type          = ucc_to_sharp_memtype[args->dst.info.mem_type];
     reduce_spec.aggr_mode                   = SHARP_AGGREGATION_NONE;
@@ -804,41 +804,12 @@ void ucc_tl_sharp_collective_reduce_scatter_progress(ucc_coll_task_t *coll_task)
 
 ucc_status_t ucc_tl_sharp_reduce_scatter_init(ucc_tl_sharp_task_t *task)
 {
-    // ucc_coll_args_t *args = &TASK_ARGS(task);
-    // ucc_coll_task_t coll_task = task->super;
-    // size_t           data_size;
-    // int              size = (int)(coll_task.bargs.team->size);
-
-    // data_size = ucc_dt_size(args->src.info.datatype) * args->src.info.count;
-
-    // if (!ucc_coll_args_is_predefined_dt(args, UCC_RANK_INVALID)) {
-    //     return UCC_ERR_NOT_SUPPORTED;
-    // }
-
-    // if ((!UCC_IS_INPLACE(*args) &&
-    //      ucc_to_sharp_memtype[args->src.info.mem_type] == SHARP_MEM_TYPE_LAST) ||
-    //     ucc_to_sharp_memtype[args->dst.info.mem_type] == SHARP_MEM_TYPE_LAST ||
-    //     ucc_to_sharp_dtype[UCC_DT_PREDEFINED_ID(args->dst.info.datatype)] == SHARP_DTYPE_NULL ||
-    //     ucc_to_sharp_reduce_op[args->op] == SHARP_OP_NULL) {
-    //     return UCC_ERR_NOT_SUPPORTED;
-    // }
-
-    // //choose real function by msg_size
-    // if(data_size/size < 16*1024){
-    //     //message size smaller than 16k, use allreduce
-    //     task->super.post     = ucc_tl_sharp_reduce_scatter_arw_start;
-    //     task->super.progress = ucc_tl_sharp_collective_progress;
-    // }else{
-    //     //message size bigger or equal to 16k, use reduce_nonblocking
-    //     //reduce_nonblocking requirs dealing multiple reques handles, use a different progress fnx
-    //     task->super.post     = ucc_tl_sharp_reduce_scatter_nr_start;
-    //     task->super.progress = ucc_tl_sharp_reduce_scatter_nr_progress;
-    // }
-
-    // return UCC_OK;
-
-    ucc_info("*********** sharp_reduce_scatter_init ************\n");
     ucc_coll_args_t *args = &TASK_ARGS(task);
+    ucc_coll_task_t coll_task = task->super;
+    size_t           data_size;
+    int              size = (int)(coll_task.bargs.team->size);
+
+    data_size = ucc_dt_size(args->src.info.datatype) * args->src.info.count;
 
     if (!ucc_coll_args_is_predefined_dt(args, UCC_RANK_INVALID)) {
         return UCC_ERR_NOT_SUPPORTED;
@@ -852,8 +823,37 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_init(ucc_tl_sharp_task_t *task)
         return UCC_ERR_NOT_SUPPORTED;
     }
 
-    task->super.post     = ucc_tl_sharp_reduce_scatter_start;
-    task->super.progress = ucc_tl_sharp_collective_reduce_scatter_progress;
+    //choose real function by msg_size
+    if(data_size/size < 16*1024){
+        //message size smaller than 16k, use allreduce
+        task->super.post     = ucc_tl_sharp_reduce_scatter_arw_start;
+        task->super.progress = ucc_tl_sharp_collective_progress;
+    }else{
+        //message size bigger or equal to 16k, use reduce_nonblocking
+        //reduce_nonblocking requirs dealing multiple reques handles, use a different progress fnx
+        task->super.post     = ucc_tl_sharp_reduce_scatter_nr_start;
+        task->super.progress = ucc_tl_sharp_reduce_scatter_nr_progress;
+    }
+
     return UCC_OK;
+
+    // ucc_info("*********** sharp_reduce_scatter_init ************\n");
+    // ucc_coll_args_t *args = &TASK_ARGS(task);
+
+    // if (!ucc_coll_args_is_predefined_dt(args, UCC_RANK_INVALID)) {
+    //     return UCC_ERR_NOT_SUPPORTED;
+    // }
+
+    // if ((!UCC_IS_INPLACE(*args) &&
+    //      ucc_to_sharp_memtype[args->src.info.mem_type] == SHARP_MEM_TYPE_LAST) ||
+    //     ucc_to_sharp_memtype[args->dst.info.mem_type] == SHARP_MEM_TYPE_LAST ||
+    //     ucc_to_sharp_dtype[UCC_DT_PREDEFINED_ID(args->dst.info.datatype)] == SHARP_DTYPE_NULL ||
+    //     ucc_to_sharp_reduce_op[args->op] == SHARP_OP_NULL) {
+    //     return UCC_ERR_NOT_SUPPORTED;
+    // }
+
+    // task->super.post     = ucc_tl_sharp_reduce_scatter_start;
+    // task->super.progress = ucc_tl_sharp_collective_reduce_scatter_progress;
+    // return UCC_OK;
 
 }
