@@ -329,7 +329,7 @@ void ucc_tl_sharp_reduce_scatter_nr_progress(ucc_coll_task_t *coll_task)
     ucc_tl_sharp_task_t *task  = ucc_derived_of(coll_task, ucc_tl_sharp_task_t);
     int completed;
     int size = (int)(coll_task->bargs.team->size);
-    int rank = (int)(coll_task->bargs.team->rank);
+    // int rank = (int)(coll_task->bargs.team->rank);
     //multiple reduce nb
     void ** request_list = (void **)task->req_handle;
     for(int i = 0; i < size; i++){
