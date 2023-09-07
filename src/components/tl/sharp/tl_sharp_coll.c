@@ -329,12 +329,13 @@ void ucc_tl_sharp_reduce_scatter_nr_progress(ucc_coll_task_t *coll_task)
     ucc_tl_sharp_task_t *task  = ucc_derived_of(coll_task, ucc_tl_sharp_task_t);
     int completed;
     int size = (int)(coll_task->bargs.team->size);
-
+    int rank = (int)(coll_task->bargs.team->rank);
     //multiple reduce nb
     void ** request_list = (void **)task->reduce_scatter.reqs;
     for(int i = 0; i < size; i++){
 
         //check i th reduce_nb request
+	if (!rank) printf("req[%d]: %p\n", i, request_list[i]);
         completed = sharp_coll_req_test(request_list[i]);
         if(completed)
             continue;
@@ -367,7 +368,7 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
     size_t                        data_size;
     int                           ret;
 
-    //int              rank = (int)(coll_task->bargs.team->rank);
+    int              rank = (int)(coll_task->bargs.team->rank);
     int              size = (int)(coll_task->bargs.team->size);
 
     //initialize sharp_req hands
@@ -426,8 +427,9 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
     char *dstBufPtrInChar = (char *) args->dst.info.buffer;
 
     for(int rankCnt = 0; rankCnt < size; rankCnt++){
-        printf("req[%d]: %p", rankCnt, &sharp_reqs[rankCnt]);
+	if (!rank) printf("req[%d]: %p\n", rankCnt, sharp_reqs[rankCnt]);
         ret = sharp_coll_do_reduce_nb(team->sharp_comm, &reduce_spec, &sharp_reqs[rankCnt]);
+	if (!rank) printf("req[%d]: %p\n", rankCnt, sharp_reqs[rankCnt]);
 
         /*update src and dst ptr*/
         srcBufPtrInChar += offset;
