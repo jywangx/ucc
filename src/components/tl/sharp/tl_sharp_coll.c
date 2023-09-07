@@ -359,8 +359,8 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
     ucc_tl_sharp_task_t          *task  = ucc_derived_of(coll_task, ucc_tl_sharp_task_t);
     ucc_tl_sharp_team_t          *team  = TASK_TEAM(task);
     ucc_coll_args_t              *args  = &TASK_ARGS(task);
-    size_t                        count = args->src.info.count;
-    ucc_datatype_t                dt    = args->src.info.datatype;
+    size_t                        count = args->dst.info.count;
+    ucc_datatype_t                dt    = args->dst.info.datatype;
     struct sharp_coll_reduce_spec reduce_spec;
     enum sharp_datatype           sharp_type;
     enum sharp_reduce_op          op_type;
@@ -381,7 +381,7 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
     data_size  = ucc_dt_size(dt) * count;
 
     /*offset for each scatter*/
-    long long offset = ((long long) data_size)/size;
+    long long offset = ((long long) data_size);
 
     if(offset < 16 * 1024){
         //message size too small, not supported
@@ -413,7 +413,7 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
     reduce_spec.rbuf_desc.type              = SHARP_DATA_BUFFER;
     reduce_spec.rbuf_desc.mem_type          = ucc_to_sharp_memtype[args->dst.info.mem_type];
     reduce_spec.aggr_mode                   = SHARP_AGGREGATION_NONE;
-    reduce_spec.length                      = (count/size);//reducce scatter 0
+    reduce_spec.length                      = (count);//reducce scatter 0
     reduce_spec.dtype                       = sharp_type;
     reduce_spec.root                        = 0;
     reduce_spec.op                          = op_type;
