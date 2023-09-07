@@ -335,7 +335,7 @@ void ucc_tl_sharp_reduce_scatter_nr_progress(ucc_coll_task_t *coll_task)
     for(int i = 0; i < size; i++){
 
         //check i th reduce_nb request
-	    if (!rank) printf("req[%d]: %p\n", i, request_list[i]);
+	    // if (!rank) printf("req[%d]: %p\n", i, request_list[i]);
         completed = sharp_coll_req_test(request_list[i]);
         if(completed)
             continue;
