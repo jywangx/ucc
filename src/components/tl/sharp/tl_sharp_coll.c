@@ -643,7 +643,7 @@ ucc_status_t ucc_tl_sharp_barrier_init(ucc_tl_sharp_task_t *task)
 ucc_status_t ucc_tl_sharp_reduce_scatter_init(ucc_tl_sharp_task_t *task)
 {
     ucc_coll_args_t *args = &TASK_ARGS(task);
-    ucc_coll_task_t coll_task = task->super;
+    ucc_coll_task_t coll_task = &task->super;
     size_t           data_size;
     int              size = (int)(coll_task->bargs.team->size);
 
