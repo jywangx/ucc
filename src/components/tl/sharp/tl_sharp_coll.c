@@ -328,7 +328,6 @@ void ucc_tl_sharp_reduce_scatter_nr_progress(ucc_coll_task_t *coll_task)
 {
     ucc_tl_sharp_task_t *task  = ucc_derived_of(coll_task, ucc_tl_sharp_task_t);
     int completed;
-    int              rank = (int)(coll_task->bargs.team->rank);
     int size = (int)(coll_task->bargs.team->size);
 
     //multiple reduce nb
@@ -406,10 +405,10 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
         reduce_spec.sbuf_desc.mem_type          = ucc_to_sharp_memtype[args->dst.info.mem_type];
     }
 
-    reduce_spec.sbuf_desc.buffer.length     = data_size;
+    reduce_spec.sbuf_desc.buffer.length     = offset;
     reduce_spec.sbuf_desc.type              = SHARP_DATA_BUFFER;
     reduce_spec.rbuf_desc.buffer.ptr        = args->dst.info.buffer;
-    reduce_spec.rbuf_desc.buffer.length     = data_size;
+    reduce_spec.rbuf_desc.buffer.length     = offset;
     reduce_spec.rbuf_desc.buffer.mem_handle = task->reduce_scatter.r_mem_h->mr;
     reduce_spec.rbuf_desc.type              = SHARP_DATA_BUFFER;
     reduce_spec.rbuf_desc.mem_type          = ucc_to_sharp_memtype[args->dst.info.mem_type];
@@ -649,6 +648,8 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_init(ucc_tl_sharp_task_t *task)
     int              size = (int)(coll_task.bargs.team->size);
 
     data_size = ucc_dt_size(args->src.info.datatype) * args->src.info.count;
+
+    tl_debug(UCC_TASK_LIB(task), "src count: %d, dst count:%d %p",args->src.info.count, args->dst.info.count, task);
 
     if (!ucc_coll_args_is_predefined_dt(args, UCC_RANK_INVALID)) {
         return UCC_ERR_NOT_SUPPORTED;
