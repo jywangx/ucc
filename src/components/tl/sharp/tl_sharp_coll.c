@@ -426,7 +426,7 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
     char *dstBufPtrInChar = (char *) args->dst.info.buffer;
 
     for(int rankCnt = 0; rankCnt < size; rankCnt++){
-
+        printf("req[%d]: %p", rankCnt, &sharp_reqs[rankCnt]);
         ret = sharp_coll_do_reduce_nb(team->sharp_comm, &reduce_spec, &sharp_reqs[rankCnt]);
 
         /*update src and dst ptr*/
