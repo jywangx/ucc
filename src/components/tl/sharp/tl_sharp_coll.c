@@ -328,6 +328,7 @@ void ucc_tl_sharp_reduce_scatter_nr_progress(ucc_coll_task_t *coll_task)
 {
     ucc_tl_sharp_task_t *task  = ucc_derived_of(coll_task, ucc_tl_sharp_task_t);
     int completed;
+    int              rank = (int)(coll_task->bargs.team->rank);
     int size = (int)(coll_task->bargs.team->size);
 
     //multiple reduce nb
@@ -335,9 +336,7 @@ void ucc_tl_sharp_reduce_scatter_nr_progress(ucc_coll_task_t *coll_task)
     for(int i = 0; i < size; i++){
 
         //check i th reduce_nb request
-        tl_debug(UCC_TASK_LIB(task), "reduce test start %p", task);
         completed = sharp_coll_req_test(request_list[i]);
-        tl_debug(UCC_TASK_LIB(task), "reduce test end %p", task);
         if(completed)
             continue;
         else
@@ -380,10 +379,10 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
 
     sharp_type = ucc_to_sharp_dtype[UCC_DT_PREDEFINED_ID(dt)];
     op_type    = ucc_to_sharp_reduce_op[args->op];
-    data_size  = ucc_dt_size(dt) * count;
+    data_size  = ucc_dt_size(dt) * count * size;
 
     /*offset for each scatter*/
-    long long offset = ((long long) data_size);
+    long long offset = ((long long) ucc_dt_size(dt) * count);
 
     if(offset < 16 * 1024){
         //message size too small, not supported
@@ -429,9 +428,7 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_nr_start(ucc_coll_task_t *coll_task)
 
     for(int rankCnt = 0; rankCnt < size; rankCnt++){
 
-        tl_debug(UCC_TASK_LIB(task), "reduce post %p", task);
         ret = sharp_coll_do_reduce_nb(team->sharp_comm, &reduce_spec, &sharp_reqs[rankCnt]);
-        tl_debug(UCC_TASK_LIB(task), "reduce post success %p", task);
 
         /*update src and dst ptr*/
         srcBufPtrInChar += offset;
