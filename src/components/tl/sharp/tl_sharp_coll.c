@@ -7,6 +7,7 @@
 #include "tl_sharp_coll.h"
 #include "components/mc/ucc_mc.h"
 #include "core/ucc_ee.h"
+#include "core/ucc_team.h"
 #include "utils/ucc_math.h"
 #include "utils/ucc_coll_utils.h"
 #include <sharp/api/version.h>
@@ -327,7 +328,7 @@ void ucc_tl_sharp_reduce_scatter_nr_progress(ucc_coll_task_t *coll_task)
 {
     ucc_tl_sharp_task_t *task  = ucc_derived_of(coll_task, ucc_tl_sharp_task_t);
     int completed;
-    int size = (int)(coll_task->bargs.team.size);
+    int size = (int)(coll_task->bargs.team->size);
 
     //multiple reduce nb
     void ** request_list = (void **)task->reduce_scatter.reqs;
