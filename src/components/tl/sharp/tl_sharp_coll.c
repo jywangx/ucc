@@ -853,7 +853,7 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_init(ucc_tl_sharp_task_t *task)
     }
 
     task->super.post     = ucc_tl_sharp_reduce_scatter_start;
-    task->super.progress = ucc_tl_sharp_collective_scatter_reduce_progress;
+    task->super.progress = ucc_tl_sharp_collective_reduce_scatter_progress;
     return UCC_OK;
 
 }
