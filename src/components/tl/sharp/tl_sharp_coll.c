@@ -330,11 +330,11 @@ void ucc_tl_sharp_reduce_scatter_nr_progress(ucc_coll_task_t *coll_task)
     ucc_coll_args_t              *args  = &TASK_ARGS(task);
     size_t                        count = args->dst.info.count;
     ucc_datatype_t                dt    = args->dst.info.datatype;
-    size_t                        data_size;
+    // size_t                        data_size;
     int completed;
     int size = (int)(coll_task->bargs.team->size);
 
-    data_size  = ucc_dt_size(dt) * count / size;
+    // data_size  = ucc_dt_size(dt) * count / size;
 
         //multiple reduce nb
         void ** request_list = (void **)task->req_handle;
