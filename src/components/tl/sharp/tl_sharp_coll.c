@@ -663,7 +663,6 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_init(ucc_tl_sharp_task_t *task)
         return UCC_ERR_NOT_SUPPORTED;
     }
 
-<<<<<<< HEAD
     //choose real function by msg_size
     if(data_size/size < 16*1024){
         //message size smaller than 16k, use allreduce
@@ -676,20 +675,6 @@ ucc_status_t ucc_tl_sharp_reduce_scatter_init(ucc_tl_sharp_task_t *task)
         task->super.progress = ucc_tl_sharp_reduce_scatter_nr_progress;
     }
 
-=======
-    //choose real function by msg_size
-    if(data_size/size < 16*1024){
-        //message size smaller than 16k, use allreduce
-        task->super.post     = ucc_tl_sharp_reduce_scatter_arw_start;
-        task->super.progress = ucc_tl_sharp_collective_progress;
-    }else{
-        //message size bigger or equal to 16k, use reduce_nonblocking
-        //reduce_nonblocking requirs dealing multiple reques handles, use a different progress fnx
-        task->super.post     = ucc_tl_sharp_reduce_scatter_nr_start
-        task->super.progress = ucc_tl_sharp_reduce_scatter_nr_progress
-    }
-    
->>>>>>> a623f4a282364ba97268ad01954822d09034f914
     return UCC_OK;
 
 }
