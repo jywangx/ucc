@@ -226,15 +226,19 @@ ucc_status_t ucc_tl_sharp_coll_init(ucc_base_coll_args_t *coll_args,
     switch (coll_args->args.coll_type)
     {
     case UCC_COLL_TYPE_ALLREDUCE:
+        tl_debug(UCC_TASK_LIB(task), "initing allreduce coll task %p", task);
         status = ucc_tl_sharp_allreduce_init(task);
         break;
     case UCC_COLL_TYPE_BARRIER:
+        tl_debug(UCC_TASK_LIB(task), "initing barrier coll task %p", task);
         status = ucc_tl_sharp_barrier_init(task);
         break;
     case UCC_COLL_TYPE_BCAST:
+        tl_debug(UCC_TASK_LIB(task), "initing bcast coll task %p", task);
         status = ucc_tl_sharp_bcast_init(task);
         break;
     case UCC_COLL_TYPE_REDUCE_SCATTER:
+        tl_debug(UCC_TASK_LIB(task), "initing reduce scatter coll task %p", task);
         status = ucc_tl_sharp_reduce_scatter_init(task);
         break;
     default:
